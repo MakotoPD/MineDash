@@ -19,12 +19,16 @@
 				/>
 			</template>
 			<div class="w-full">
-				<p>MineDash</p>
+				<div class="flex justify-center items-center mt-1 gap-2">
+					<img src="/icon.png" alt="icon" width="36" height="36">
+					<p>MineDash</p>
+				</div>
+				
 
 
 				<div class="my-8">
 					<p class="text-xs text-gray-500">MAIN</p>
-					<div class="flex flex-col">
+					<div class="flex flex-col mt-1">
 						<UButton class="cursor-pointer" color="primary" variant="ghost" icon="i-lucide-home" to="/">Dashboard</UButton>
 						<UButton class="cursor-pointer" color="primary" variant="ghost" icon="i-lucide-settings" to="/settings">Settings</UButton>
 					</div>

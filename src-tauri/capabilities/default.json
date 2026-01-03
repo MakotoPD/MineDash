@@ -29,6 +29,12 @@
         },
         {
           "url": "https://cdn.modrinth.com/**"
+        },
+        {
+          "url": "https://api.github.com/**"
+        },
+        {
+          "url": "https://api.mojang.com/**"
         }
       ]
     },

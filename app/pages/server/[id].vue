@@ -24,6 +24,13 @@
           </div>
 
           <div class="flex items-center gap-2">
+             <UButton 
+               icon="i-lucide-folder-open" 
+               color="neutral" 
+               variant="ghost" 
+               title="Open Server Folder"
+               @click="openServerFolder"
+             />
              <UBadge :color="statusColor" variant="subtle" size="md" class="px-3 py-1.5 uppercase">{{ serverStatus }}</UBadge>
              
              <UButton 
@@ -60,7 +67,7 @@
       </div>
 
       <div v-else class="max-w-7xl mx-auto h-full p-6 flex flex-col">
-        <UTabs v-model="selectedTab" :items="tabs" class="w-full flex-1 flex flex-col" :ui="{ wrapper: 'flex-1 flex flex-col', container: 'flex-1 mt-4 overflow-y-auto' }">
+        <UTabs v-model="selectedTab" :items="tabs" class="w-full flex-1 flex flex-col">
            
            <!-- Console / Overview -->
            <template #console>
@@ -308,7 +315,7 @@
                        </UCard>
 
                        <!-- Danger Zone -->
-                       <UCard :ui="{ ring: 'ring-1 ring-error-500/50', divide: 'divide-error-500/20', body: { base: 'bg-error-50/50 dark:bg-error-950/10' } }">
+                       <UCard :ui="{ root: 'ring-1 ring-error-500/50 divide-error-500/20', body: 'bg-error-50/50 dark:bg-error-950/10' }">
                           <template #header>
                              <h3 class="font-semibold text-error-500 flex items-center gap-2">
                                 <UIcon name="i-lucide-alert-triangle" />
@@ -510,74 +517,164 @@
                </div>
            </template>
 
-           <!-- File Manager -->
-           <template #files>
-               <div class="h-full flex flex-col p-4">
-                  <!-- Navigation Bar -->
-                  <div class="flex items-center gap-2 mb-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-2 rounded-lg">
-                     <UButton icon="i-lucide-home" color="neutral" variant="ghost" size="sm" @click="loadFiles('')" />
-                     <UIcon name="i-lucide-chevron-right" class="text-gray-400 w-4 h-4" />
+           <!-- Player Management -->
+           <template #players>
+               <div class="h-full flex flex-col p-4 space-y-4 overflow-y-auto">
+                  <!-- Online Players -->
+                  <UCard>
+                     <template #header>
+                        <div class="flex items-center justify-between">
+                           <div class="flex items-center gap-2">
+                              <UIcon name="i-lucide-circle-dot" class="w-5 h-5 text-success-500" />
+                              <h3 class="font-semibold">Online Players</h3>
+                              <UBadge v-if="serverStatus === 'online'" color="success" variant="subtle" size="xs">{{ onlinePlayers.length }}</UBadge>
+                           </div>
+                           <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="xs" @click="fetchOnlinePlayers" title="Refresh" />
+                        </div>
+                     </template>
                      
-                     <div class="flex-1 flex flex-wrap items-center gap-1 font-mono text-sm">
-                        <template v-if="!fileCurrentPath">
-                           <span class="text-gray-500">root</span>
-                        </template>
-                        <template v-else>
-                           <UButton 
-                              v-for="(part, idx) in fileCurrentPath.split('/')" 
-                              :key="idx"
-                              :label="part"
-                              color="neutral"
-                              variant="ghost"
-                              size="xs"
-                              @click="loadFiles(fileCurrentPath.split('/').slice(0, idx+1).join('/'))"
-                           />
-                        </template>
+                     <div v-if="serverStatus !== 'online'" class="text-center py-6 text-gray-500">
+                        <UIcon name="i-lucide-wifi-off" class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p>Server is offline</p>
                      </div>
+                     <div v-else-if="onlinePlayers.length === 0" class="text-center py-6 text-gray-500">
+                        <UIcon name="i-lucide-user-x" class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p>No players online</p>
+                     </div>
+                     <div v-else class="space-y-2">
+                        <div v-for="player in onlinePlayers" :key="player" class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors group">
+                           <div class="flex items-center gap-3">
+                              <img :src="`https://mc-heads.net/avatar/${player}/24`" class="w-6 h-6 rounded" :alt="player" />
+                              <span class="font-medium text-sm">{{ player }}</span>
+                           </div>
+                           <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <UTooltip text="Add to Whitelist">
+                                 <UButton icon="i-lucide-shield-plus" color="primary" variant="ghost" size="xs" @click="quickWhitelist(player)" />
+                              </UTooltip>
+                              <UTooltip text="Make Operator">
+                                 <UButton icon="i-lucide-star" color="warning" variant="ghost" size="xs" @click="quickOp(player)" />
+                              </UTooltip>
+                              <UTooltip text="Kick Player">
+                                 <UButton icon="i-lucide-log-out" color="neutral" variant="ghost" size="xs" @click="kickPlayer(player)" />
+                              </UTooltip>
+                              <UTooltip text="Ban Player">
+                                 <UButton icon="i-lucide-ban" color="error" variant="ghost" size="xs" @click="quickBan(player)" />
+                              </UTooltip>
+                           </div>
+                        </div>
+                     </div>
+                  </UCard>
 
-                     <UButton icon="i-lucide-arrow-up" color="neutral" variant="ghost" size="sm" :disabled="!fileCurrentPath" @click="navigateUp" />
-                     <UButton icon="i-lucide-folder-symlink" color="neutral" variant="ghost" size="sm" title="Open in Explorer" @click="openServerFolder" />
-                     <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" size="sm" :loading="loadingFiles" @click="loadFiles(fileCurrentPath)" />
-                  </div>
+                  <!-- Whitelist -->
+                  <UCard>
+                     <template #header>
+                        <div class="flex items-center justify-between">
+                           <div class="flex items-center gap-2">
+                              <UIcon name="i-lucide-shield-check" class="w-5 h-5 text-primary-500" />
+                              <h3 class="font-semibold">Whitelist</h3>
+                              <UBadge color="neutral" variant="subtle" size="xs">{{ whitelist.length }}</UBadge>
+                           </div>
+                           <div class="flex items-center gap-2">
+                              <UInput v-model="newWhitelistPlayer" placeholder="Player name" size="xs" class="w-36" @keydown.enter="addToWhitelist" />
+                              <UButton icon="i-lucide-plus" color="primary" size="xs" @click="addToWhitelist" :disabled="!newWhitelistPlayer" />
+                           </div>
+                        </div>
+                     </template>
+                     
+                     <div v-if="loadingPlayers" class="flex justify-center py-6">
+                        <UIcon name="i-lucide-loader-2" class="w-6 h-6 animate-spin text-primary-500" />
+                     </div>
+                     <div v-else-if="whitelist.length === 0" class="text-center py-6 text-gray-500">
+                        <UIcon name="i-lucide-list" class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p>Whitelist is empty</p>
+                     </div>
+                     <div v-else class="space-y-2">
+                        <div v-for="entry in whitelist" :key="entry.uuid" class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                           <div class="flex items-center gap-3">
+                              <img :src="`https://mc-heads.net/avatar/${entry.name}/24`" class="w-6 h-6 rounded" :alt="entry.name" />
+                              <div>
+                                 <span class="font-medium text-sm">{{ entry.name }}</span>
+                                 <span class="text-xs text-gray-400 ml-2 font-mono">{{ entry.uuid.substring(0, 8) }}...</span>
+                              </div>
+                           </div>
+                           <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="xs" @click="removeFromWhitelist(entry.uuid)" />
+                        </div>
+                     </div>
+                  </UCard>
 
-                  <!-- File List -->
-                  <UCard class="flex-1 min-h-0 flex flex-col" :ui="{ body: { base: 'flex-1 min-h-0 overflow-y-auto p-0' } }">
-                     <div v-if="loadingFiles" class="flex justify-center py-12">
-                        <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-primary-500" />
+                  <!-- Operators -->
+                  <UCard>
+                     <template #header>
+                        <div class="flex items-center justify-between">
+                           <div class="flex items-center gap-2">
+                              <UIcon name="i-lucide-star" class="w-5 h-5 text-warning-500" />
+                              <h3 class="font-semibold">Operators</h3>
+                              <UBadge color="neutral" variant="subtle" size="xs">{{ operators.length }}</UBadge>
+                           </div>
+                           <div class="flex items-center gap-2">
+                              <UInput v-model="newOperator" placeholder="Player name" size="xs" class="w-36" @keydown.enter="addOperator" />
+                              <UButton icon="i-lucide-plus" color="primary" size="xs" @click="addOperator" :disabled="!newOperator" />
+                           </div>
+                        </div>
+                     </template>
+                     
+                     <div v-if="loadingPlayers" class="flex justify-center py-6">
+                        <UIcon name="i-lucide-loader-2" class="w-6 h-6 animate-spin text-primary-500" />
                      </div>
-                     <div v-else-if="serverFiles.length === 0" class="flex flex-col items-center justify-center py-12 text-gray-500">
-                        <UIcon name="i-lucide-folder-open" class="w-12 h-12 mb-2 opacity-50" />
-                        <p>Empty directory</p>
+                     <div v-else-if="operators.length === 0" class="text-center py-6 text-gray-500">
+                        <UIcon name="i-lucide-star-off" class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p>No operators</p>
                      </div>
-                     <table v-else class="w-full text-sm">
-                        <thead class="bg-gray-50 dark:bg-gray-800/50 text-left sticky top-0 z-10 backdrop-blur">
-                           <tr>
-                              <th class="p-3 font-medium text-gray-500 w-8"></th>
-                              <th class="p-3 font-medium text-gray-500">Name</th>
-                              <th class="p-3 font-medium text-gray-500 text-right">Actions</th>
-                           </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
-                           <tr 
-                              v-for="file in serverFiles" 
-                              :key="file.name" 
-                              class="hover:bg-gray-50 dark:hover:bg-gray-800/50 group cursor-pointer"
-                              @click="navigateFile(file)"
-                           >
-                              <td class="p-3 text-center">
-                                 <UIcon :name="getFileIcon(file.name, file.isDirectory)" :class="['w-5 h-5', getFileColor(file.name, file.isDirectory)]" />
-                              </td>
-                              <td class="p-3 font-medium font-mono" :class="{'text-primary-500': file.isDirectory}">
-                                 {{ file.name }}
-                              </td>
-                              <td class="p-3 text-right">
-                                 <div class="opacity-0 group-hover:opacity-100 transition-opacity flex justify-end gap-1">
-                                    <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="xs" @click.stop="deleteFileEntry(file)" />
-                                 </div>
-                              </td>
-                           </tr>
-                        </tbody>
-                     </table>
+                     <div v-else class="space-y-2">
+                        <div v-for="entry in operators" :key="entry.uuid" class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                           <div class="flex items-center gap-3">
+                              <img :src="`https://mc-heads.net/avatar/${entry.name}/24`" class="w-6 h-6 rounded" :alt="entry.name" />
+                              <div>
+                                 <span class="font-medium text-sm">{{ entry.name }}</span>
+                                 <UBadge color="warning" variant="subtle" size="xs" class="ml-2">Level {{ entry.level }}</UBadge>
+                              </div>
+                           </div>
+                           <UButton icon="i-lucide-trash-2" color="error" variant="ghost" size="xs" @click="removeOperator(entry.uuid)" />
+                        </div>
+                     </div>
+                  </UCard>
+
+                  <!-- Banned Players -->
+                  <UCard>
+                     <template #header>
+                        <div class="flex items-center justify-between">
+                           <div class="flex items-center gap-2">
+                              <UIcon name="i-lucide-ban" class="w-5 h-5 text-error-500" />
+                              <h3 class="font-semibold">Banned Players</h3>
+                              <UBadge color="neutral" variant="subtle" size="xs">{{ bannedPlayers.length }}</UBadge>
+                           </div>
+                           <div class="flex items-center gap-2">
+                              <UInput v-model="newBannedPlayer" placeholder="Player name" size="xs" class="w-28" @keydown.enter="banPlayer" />
+                              <UInput v-model="banReason" placeholder="Reason" size="xs" class="w-28" @keydown.enter="banPlayer" />
+                              <UButton icon="i-lucide-plus" color="error" size="xs" @click="banPlayer" :disabled="!newBannedPlayer" />
+                           </div>
+                        </div>
+                     </template>
+                     
+                     <div v-if="loadingPlayers" class="flex justify-center py-6">
+                        <UIcon name="i-lucide-loader-2" class="w-6 h-6 animate-spin text-primary-500" />
+                     </div>
+                     <div v-else-if="bannedPlayers.length === 0" class="text-center py-6 text-gray-500">
+                        <UIcon name="i-lucide-smile" class="w-8 h-8 mx-auto mb-2 opacity-30" />
+                        <p>No banned players</p>
+                     </div>
+                     <div v-else class="space-y-2">
+                        <div v-for="entry in bannedPlayers" :key="entry.uuid" class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                           <div class="flex items-center gap-3">
+                              <img :src="`https://mc-heads.net/avatar/${entry.name}/24`" class="w-6 h-6 rounded" :alt="entry.name" />
+                              <div>
+                                 <span class="font-medium text-sm">{{ entry.name }}</span>
+                                 <span v-if="entry.reason" class="text-xs text-gray-400 ml-2">"{{ entry.reason }}"</span>
+                              </div>
+                           </div>
+                           <UButton icon="i-lucide-check" color="success" variant="ghost" size="xs" @click="unbanPlayer(entry.uuid)" title="Unban" />
+                        </div>
+                     </div>
                   </UCard>
                </div>
            </template>
@@ -622,7 +719,6 @@ import { Command, type Child, open } from '@tauri-apps/plugin-shell'
 import { join } from '@tauri-apps/api/path'
 import { documentDir } from '@tauri-apps/api/path'
 import { parseAnsiToHtml } from '~/utils/ansiParser'
-import { getFileIcon, getFileColor } from '~/utils/fileIcons'
 
 const route = useRoute()
 const serverId = route.params.id as string // actually folder name
@@ -764,6 +860,40 @@ const addons = ref<AddonUI[]>([]) // Combined list
 const installedAddonsMeta = ref<Record<string, Omit<AddonMeta, 'fileName' | 'source'>>>({}) // Persistent meta
 const loadingAddons = ref(false)
 const checkingUpdates = ref(false)
+
+// --- Player Management ---
+interface WhitelistEntry {
+   uuid: string
+   name: string
+}
+
+interface OperatorEntry {
+   uuid: string
+   name: string
+   level: number
+   bypassesPlayerLimit: boolean
+}
+
+interface BannedPlayerEntry {
+   uuid: string
+   name: string
+   created: string
+   source: string
+   expires: string
+   reason: string
+}
+
+const onlinePlayers = ref<string[]>([])
+const whitelist = ref<WhitelistEntry[]>([])
+const operators = ref<OperatorEntry[]>([])
+const bannedPlayers = ref<BannedPlayerEntry[]>([])
+const loadingPlayers = ref(false)
+
+// Input fields for adding new entries
+const newWhitelistPlayer = ref('')
+const newOperator = ref('')
+const newBannedPlayer = ref('')
+const banReason = ref('')
 
 // ...
 
@@ -1162,116 +1292,295 @@ watch(() => server.value, () => {
 })
 // Actually we can just load on mount if specific tab active or lazy load.
 
-// --- File Manager Logic ---
-const fileCurrentPath = ref('')
-const serverFiles = ref<any[]>([])
-const loadingFiles = ref(false)
+// --- Player Management Logic ---
 
-async function loadFiles(relativePath = '') {
-    loadingFiles.value = true
-    try {
-        const folder = serverFolderName.value
-        // If root, path is empty. If subdir, join.
-        // relativePath is like "logs" or "world/stats"
-        // Target full path: Documents/MineDash/servers/{folder}/{relativePath}
-        
-        // Remove leading slash if present
-        if (relativePath.startsWith('/')) relativePath = relativePath.substring(1)
-        
-        fileCurrentPath.value = relativePath
-        
-        // Construct target path for reading
-        const targetDir = relativePath 
-            ? `MineDash/servers/${folder}/${relativePath}`
-            : `MineDash/servers/${folder}`
-            
-        const entries = await readDir(targetDir, { baseDir: BaseDirectory.Document })
-        
-        // Sort: Directories first, then files. Alphabetical.
-        serverFiles.value = entries.sort((a, b) => {
-            if (a.isDirectory && !b.isDirectory) return -1
-            if (!a.isDirectory && b.isDirectory) return 1
-            return a.name.localeCompare(b.name)
-        })
-        
-    } catch (e) {
-        console.error('Failed to load files', e)
-        serverFiles.value = []
-    } finally {
-        loadingFiles.value = false
-    }
+async function loadPlayerLists() {
+   loadingPlayers.value = true
+   try {
+      const folder = serverFolderName.value
+      
+      // Load whitelist.json
+      try {
+         const whitelistPath = `MineDash/servers/${folder}/whitelist.json`
+         if (await exists(whitelistPath, { baseDir: BaseDirectory.Document })) {
+            const content = await readTextFile(whitelistPath, { baseDir: BaseDirectory.Document })
+            whitelist.value = JSON.parse(content)
+         } else {
+            whitelist.value = []
+         }
+      } catch (e) {
+         console.error('Failed to load whitelist', e)
+         whitelist.value = []
+      }
+      
+      // Load ops.json
+      try {
+         const opsPath = `MineDash/servers/${folder}/ops.json`
+         if (await exists(opsPath, { baseDir: BaseDirectory.Document })) {
+            const content = await readTextFile(opsPath, { baseDir: BaseDirectory.Document })
+            operators.value = JSON.parse(content)
+         } else {
+            operators.value = []
+         }
+      } catch (e) {
+         console.error('Failed to load operators', e)
+         operators.value = []
+      }
+      
+      // Load banned-players.json
+      try {
+         const bannedPath = `MineDash/servers/${folder}/banned-players.json`
+         if (await exists(bannedPath, { baseDir: BaseDirectory.Document })) {
+            const content = await readTextFile(bannedPath, { baseDir: BaseDirectory.Document })
+            bannedPlayers.value = JSON.parse(content)
+         } else {
+            bannedPlayers.value = []
+         }
+      } catch (e) {
+         console.error('Failed to load banned players', e)
+         bannedPlayers.value = []
+      }
+      
+   } catch (e) {
+      console.error('Failed to load player lists', e)
+   } finally {
+      loadingPlayers.value = false
+   }
 }
 
-async function navigateFile(entry: any) {
-    if (entry.isDirectory) {
-        const newPath = fileCurrentPath.value 
-            ? `${fileCurrentPath.value}/${entry.name}` 
-            : entry.name
-        loadFiles(newPath)
-    }
+async function saveWhitelist() {
+   try {
+      const folder = serverFolderName.value
+      const path = `MineDash/servers/${folder}/whitelist.json`
+      await writeTextFile(path, JSON.stringify(whitelist.value, null, 2), { baseDir: BaseDirectory.Document })
+   } catch (e) {
+      console.error('Failed to save whitelist', e)
+   }
 }
 
-async function navigateUp() {
-    if (!fileCurrentPath.value) return
-    const parts = fileCurrentPath.value.split('/')
-    parts.pop()
-    const newPath = parts.join('/')
-    loadFiles(newPath)
+async function saveOperators() {
+   try {
+      const folder = serverFolderName.value
+      const path = `MineDash/servers/${folder}/ops.json`
+      await writeTextFile(path, JSON.stringify(operators.value, null, 2), { baseDir: BaseDirectory.Document })
+   } catch (e) {
+      console.error('Failed to save operators', e)
+   }
 }
 
-async function deleteFileEntry(entry: any) {
-    if (!confirm(`Are you sure you want to delete ${entry.name}?`)) return
-    
-    try {
-        const folder = serverFolderName.value
-        const relative = fileCurrentPath.value 
-            ? `${fileCurrentPath.value}/${entry.name}` 
-            : entry.name
-            
-        const targetPath = `MineDash/servers/${folder}/${relative}`
-        await remove(targetPath, { baseDir: BaseDirectory.Document, recursive: entry.isDirectory })
-        
-        // Refresh
-        loadFiles(fileCurrentPath.value)
-    } catch (e) {
-        console.error('Failed to delete file', e)
-        alert('Failed to delete file: ' + e)
-    }
+async function saveBannedPlayers() {
+   try {
+      const folder = serverFolderName.value
+      const path = `MineDash/servers/${folder}/banned-players.json`
+      await writeTextFile(path, JSON.stringify(bannedPlayers.value, null, 2), { baseDir: BaseDirectory.Document })
+   } catch (e) {
+      console.error('Failed to save banned players', e)
+   }
+}
+
+async function fetchPlayerUUID(playerName: string): Promise<{ uuid: string; name: string } | null> {
+   try {
+      const res = await fetch(`https://api.mojang.com/users/profiles/minecraft/${playerName}`)
+      if (!res.ok) return null
+      const data = await res.json()
+      const id = data.id
+      const uuid = `${id.slice(0,8)}-${id.slice(8,12)}-${id.slice(12,16)}-${id.slice(16,20)}-${id.slice(20)}`
+      return { uuid, name: data.name }
+   } catch (e) {
+      console.error('Failed to fetch UUID', e)
+      return null
+   }
+}
+
+async function addToWhitelist() {
+   if (!newWhitelistPlayer.value.trim()) return
+   
+   const playerData = await fetchPlayerUUID(newWhitelistPlayer.value.trim())
+   if (!playerData) return
+   
+   if (whitelist.value.some(e => e.uuid === playerData.uuid)) {
+      newWhitelistPlayer.value = ''
+      return
+   }
+   
+   whitelist.value.push({ uuid: playerData.uuid, name: playerData.name })
+   await saveWhitelist()
+   newWhitelistPlayer.value = ''
+   
+   if (serverStatus.value === 'online' && serverProcess.value) {
+      await serverProcess.value.write(`whitelist add ${playerData.name}\n`)
+   }
+}
+
+async function removeFromWhitelist(uuid: string) {
+   const entry = whitelist.value.find(e => e.uuid === uuid)
+   whitelist.value = whitelist.value.filter(e => e.uuid !== uuid)
+   await saveWhitelist()
+   
+   if (serverStatus.value === 'online' && serverProcess.value && entry) {
+      await serverProcess.value.write(`whitelist remove ${entry.name}\n`)
+   }
+}
+
+async function addOperator() {
+   if (!newOperator.value.trim()) return
+   
+   const playerData = await fetchPlayerUUID(newOperator.value.trim())
+   if (!playerData) return
+   
+   if (operators.value.some(e => e.uuid === playerData.uuid)) {
+      newOperator.value = ''
+      return
+   }
+   
+   operators.value.push({ uuid: playerData.uuid, name: playerData.name, level: 4, bypassesPlayerLimit: false })
+   await saveOperators()
+   newOperator.value = ''
+   
+   if (serverStatus.value === 'online' && serverProcess.value) {
+      await serverProcess.value.write(`op ${playerData.name}\n`)
+   }
+}
+
+async function removeOperator(uuid: string) {
+   const entry = operators.value.find(e => e.uuid === uuid)
+   operators.value = operators.value.filter(e => e.uuid !== uuid)
+   await saveOperators()
+   
+   if (serverStatus.value === 'online' && serverProcess.value && entry) {
+      await serverProcess.value.write(`deop ${entry.name}\n`)
+   }
+}
+
+async function banPlayer() {
+   if (!newBannedPlayer.value.trim()) return
+   
+   const playerData = await fetchPlayerUUID(newBannedPlayer.value.trim())
+   if (!playerData) return
+   
+   if (bannedPlayers.value.some(e => e.uuid === playerData.uuid)) {
+      newBannedPlayer.value = ''
+      banReason.value = ''
+      return
+   }
+   
+   bannedPlayers.value.push({ 
+      uuid: playerData.uuid, 
+      name: playerData.name,
+      created: new Date().toISOString(),
+      source: 'MineDash',
+      expires: 'forever',
+      reason: banReason.value || 'Banned by administrator'
+   })
+   await saveBannedPlayers()
+   
+   if (serverStatus.value === 'online' && serverProcess.value) {
+      await serverProcess.value.write(`ban ${playerData.name} ${banReason.value || 'Banned by administrator'}\n`)
+   }
+   
+   newBannedPlayer.value = ''
+   banReason.value = ''
+}
+
+async function unbanPlayer(uuid: string) {
+   const entry = bannedPlayers.value.find(e => e.uuid === uuid)
+   bannedPlayers.value = bannedPlayers.value.filter(e => e.uuid !== uuid)
+   await saveBannedPlayers()
+   
+   if (serverStatus.value === 'online' && serverProcess.value && entry) {
+      await serverProcess.value.write(`pardon ${entry.name}\n`)
+   }
+}
+
+// Quick actions for online players
+async function kickPlayer(playerName: string) {
+   if (serverStatus.value !== 'online' || !serverProcess.value) return
+   await serverProcess.value.write(`kick ${playerName}\n`)
+   // Refresh player list after kick
+   setTimeout(() => fetchOnlinePlayers(), 500)
+}
+
+async function quickBan(playerName: string) {
+   if (serverStatus.value !== 'online' || !serverProcess.value) return
+   await serverProcess.value.write(`ban ${playerName} Banned via MineDash\n`)
+   // Refresh lists
+   setTimeout(() => {
+      fetchOnlinePlayers()
+      loadPlayerLists()
+   }, 500)
+}
+
+async function quickOp(playerName: string) {
+   if (serverStatus.value !== 'online' || !serverProcess.value) return
+   await serverProcess.value.write(`op ${playerName}\n`)
+   // Refresh operators list
+   setTimeout(() => loadPlayerLists(), 500)
+}
+
+async function quickWhitelist(playerName: string) {
+   if (serverStatus.value !== 'online' || !serverProcess.value) return
+   await serverProcess.value.write(`whitelist add ${playerName}\n`)
+   // Refresh whitelist
+   setTimeout(() => loadPlayerLists(), 500)
+}
+
+async function fetchOnlinePlayers() {
+   if (serverStatus.value !== 'online' || !serverProcess.value) {
+      onlinePlayers.value = []
+      return
+   }
+   
+   // Wysyłamy komendę list do serwera
+   await serverProcess.value.write('list\n')
+   
+   // Czekamy na odpowiedź
+   await new Promise(r => setTimeout(r, 300))
+   
+   // Parsujemy odpowiedź z ostatnich linii konsoli
+   for (let i = consoleLines.value.length - 1; i >= Math.max(0, consoleLines.value.length - 15); i--) {
+      const line = consoleLines.value[i]
+      
+      // Format: "There are X of a max of Y players online: Player1, Player2"
+      // lub "There are X/Y players online: Player1, Player2" (niektóre serwery)
+      const match = line.match(/There are (\d+)(?:\s+of a max of\s+|\/)(\d+) players online:?\s*(.*)/)
+      if (match) {
+         const count = parseInt(match[1])
+         if (count === 0) {
+            onlinePlayers.value = []
+         } else {
+            // Lista graczy może być po dwukropku lub w następnej linii
+            const playerList = match[3].trim()
+            if (playerList) {
+               onlinePlayers.value = playerList.split(',').map(p => p.trim()).filter(p => p)
+            }
+         }
+         return
+      }
+   }
 }
 
 async function openServerFolder() {
     try {
         const folder = serverFolderName.value
-        const relative = fileCurrentPath.value 
-            ? `MineDash/servers/${folder}/${fileCurrentPath.value}`
-            : `MineDash/servers/${folder}`
-            
+        const relative = `MineDash/servers/${folder}`
         const docDir = await documentDir()
         const fullPath = await join(docDir, relative)
-                
-        // Use cwd option to avoid path escaping issues in arguments
-        // 'start .' opens the current directory
         const command = Command.create('run-bat', ['/C', 'start .'], { cwd: fullPath })
         await command.spawn()
-        
     } catch (e) {
         console.error('Failed to open folder', e)
         consoleLines.value.push(`Failed to open folder: ${e}`)
     }
 }
 
-// Watch tab change to load files if needed - simplified, just load when tab is active or lazy
-// We'll add a watcher for the active tab later or just load once
-
 const tabs = computed(() => {
     const allTabs = [
         { label: 'Console', icon: 'i-lucide-terminal', value: 'console', slot: 'console' as const },
         { label: 'Settings', icon: 'i-lucide-settings-2', value: 'settings', slot: 'settings' as const },
         { label: 'Mods & Plugins', icon: 'i-lucide-package', value: 'addons', slot: 'addons' as const },
-        { label: 'Files', icon: 'i-lucide-folder-open', value: 'files', slot: 'files' as const }
+        { label: 'Players', icon: 'i-lucide-users', value: 'players', slot: 'players' as const }
     ]
     
-    // Hide Addons tab if not supported (addonsFolder is null for vanilla/bedrock)
     if (!addonsFolder.value) {
         return allTabs.filter(t => t.value !== 'addons')
     }
@@ -1281,13 +1590,21 @@ const tabs = computed(() => {
 
 const selectedTab = ref('console')
 
-watch(selectedTab, (index) => {
+watch(selectedTab, async () => {
    const tab = selectedTab.value
-
    if (!tab) return
    
-   if (tab === 'files' && serverFiles.value.length === 0) {
-      loadFiles()
+   // Scroll console to bottom when switching to console tab
+   if (tab === 'console') {
+      await nextTick()
+      if (consoleRef.value) {
+         consoleRef.value.scrollTop = consoleRef.value.scrollHeight
+      }
+   }
+   
+   if (tab === 'players' && whitelist.value.length === 0 && operators.value.length === 0 && bannedPlayers.value.length === 0) {
+      loadPlayerLists()
+      fetchOnlinePlayers()
    }
    if (tab === 'addons' && !addons.value.length) {
       loadAddons()

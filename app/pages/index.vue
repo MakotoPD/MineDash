@@ -61,7 +61,7 @@
                 </div>
               </div>
             </div>
-            <div v-if="getServerStatus(server.path.split('/').pop() || '') === 'online'" class="border-t border-gray-700">
+            <div v-if="getServerStatus(server.path.split('/').pop() || '') === 'online'" class="border-t border-gray-700 mt-1">
               <div class="flex flex-col gap-3 mt-3 pt-2 px-1">
                 <!-- CPU Progress -->
                 <div>

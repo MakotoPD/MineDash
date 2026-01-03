@@ -60,7 +60,7 @@
                 </div>
 
                 <!-- Default Flags -->
-                <div class="space-y-2">
+                <div class="space-y-2 flex flex-col">
                    <label class="text-sm font-medium">Global Startup Flags</label>
                    <UTextarea v-model="settings.defaultFlags" :rows="3" placeholder="-XX:+UseG1GC ..." />
                    <p class="text-xs text-gray-500">These flags are applied to all new servers by default.</p>
@@ -81,9 +81,50 @@
                    <h3 class="font-semibold">About MineDash</h3>
                 </div>
              </template>
-             <div class="text-sm text-gray-500 space-y-2">
-                <p>Version: 0.1.0-alpha</p>
-                <p>Created by <a href="http://makoto.com.pl" target="_blank" rel="noopener noreferrer">MakotoPD</a></p>
+             <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                   <div class="text-sm text-gray-500">
+                      <p>Version: {{ currentVersion }}</p>
+                      <p>Created by <a href="http://makoto.com.pl" target="_blank" rel="noopener noreferrer" class="text-primary-500 hover:underline">MakotoPD</a></p>
+                   </div>
+                   <UButton 
+                      icon="i-lucide-refresh-cw" 
+                      color="neutral" 
+                      variant="ghost" 
+                      :loading="checkingUpdate"
+                      @click="checkUpdate"
+                   >
+                      Check for Updates
+                   </UButton>
+                </div>
+                
+                <!-- Update Available Banner -->
+                <div v-if="updateInfo?.available" class="p-4 bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg">
+                   <div class="flex items-start gap-3">
+                      <UIcon name="i-lucide-download" class="w-5 h-5 text-primary-500 mt-0.5" />
+                      <div class="flex-1">
+                         <h4 class="font-semibold text-primary-700 dark:text-primary-300">Update Available!</h4>
+                         <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Version <strong>{{ updateInfo.latestVersion }}</strong> is available. You have <strong>{{ updateInfo.currentVersion }}</strong>.
+                         </p>
+                         <UButton 
+                            class="mt-3" 
+                            size="sm" 
+                            color="primary"
+                            icon="i-lucide-external-link"
+                            @click="openReleasePage"
+                         >
+                            Download Update
+                         </UButton>
+                      </div>
+                   </div>
+                </div>
+                
+                <!-- Up to date message -->
+                <div v-else-if="updateInfo && !updateInfo.available" class="p-3 bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-lg flex items-center gap-2">
+                   <UIcon name="i-lucide-check-circle" class="w-5 h-5 text-success-500" />
+                   <span class="text-sm text-success-700 dark:text-success-300">You're running the latest version!</span>
+                </div>
              </div>
           </UCard>
        </div>
@@ -93,12 +134,18 @@
 
 <script setup lang="ts">
 import { readTextFile, writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs'
+import { open } from '@tauri-apps/plugin-shell'
 import { detectJava, type JavaStatus } from '~/utils/javaDetection'
+import { useUpdateChecker } from '~/composables/useUpdateChecker'
+import { GITHUB_RELEASES_URL } from '~/utils/version'
 
 const loading = ref(true)
 const saving = ref(false)
 const checkingJava = ref(false)
 const javaStatus = ref<JavaStatus>({ installed: false, version: '', details: '' })
+
+// Update checker
+const { updateInfo, checking: checkingUpdate, checkForUpdates, currentVersion } = useUpdateChecker()
 
 const settings = reactive({
    javaPath: 'java',
@@ -110,6 +157,14 @@ onMounted(() => {
    loadSettings()
    checkJava()
 })
+
+async function checkUpdate() {
+   await checkForUpdates()
+}
+
+async function openReleasePage() {
+   await open(updateInfo.value?.releaseUrl || GITHUB_RELEASES_URL)
+}
 
 async function checkJava() {
    checkingJava.value = true
