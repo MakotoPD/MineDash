@@ -2641,10 +2641,20 @@ async function startServer() {
       await writeTextFile(scriptPath, scriptContent, { baseDir: BaseDirectory.Document })
       consoleLines.value.push(`Generated ${isWindows ? 'start.bat' : 'start.sh'}`)
       
-      consoleLines.value.push(`Executing: java ${javaArgs.join(' ')}`)
+      consoleLines.value.push(`Executing: "${javaPath}" ${javaArgs.join(' ')}`)
       
-      // Run Java directly using run-java
-      const cmd = Command.create('run-java', javaArgs, {cwd: fullServerPath})
+      // Use run-bat (Windows) or run-sh (Unix) to execute explicit java path
+      // Because 'run-java' forces system java
+      let cmd: Command
+      if (isWindows) {
+         // cmd /C path/to/java args...
+         // Pass arguments separately. run-bat maps to `cmd` and args are passed as-is (except for /C)
+         // Tauri will quote arguments that contain spaces automatically.
+         cmd = Command.create('run-bat', ['/C', javaPath, ...javaArgs], {cwd: fullServerPath})
+      } else {
+         // sh arguments
+         cmd = Command.create('run-sh', ['-c', `"${javaPath}" ${javaArgs.join(' ')}`], {cwd: fullServerPath})
+      }
       
       cmd.on('close', (data) => {
          consoleLines.value.push(`Server stopped with code ${data.code}`)

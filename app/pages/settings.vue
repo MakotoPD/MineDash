@@ -66,8 +66,26 @@
                    <p class="text-xs text-gray-500">These flags are applied to all new servers by default.</p>
                 </div>
 
-                <!-- Java Installations -->
-                <div class="space-y-4 pt-4 border-t border-gray-800">
+                  <!-- Close Behavior -->
+                  <div class="space-y-4 pt-4 border-t border-gray-800">
+                     <div class="flex items-center justify-between">
+                        <div>
+                           <h4 class="font-medium text-sm">Window Behavior</h4>
+                           <p class="text-xs text-gray-500">Configure how the application behaves when closing the window.</p>
+                        </div>
+                     </div>
+                     
+                     <div class="p-3 bg-gray-900 rounded-lg flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                           <UIcon name="i-lucide-minimize-2" class="w-5 h-5 text-gray-400" />
+                           <span class="text-sm font-medium">Minimize to Tray on Close</span>
+                        </div>
+                        <USwitch v-model="settings.minimizeOnClose" color="primary" />
+                     </div>
+                  </div>
+
+                  <!-- Java Installations -->
+                  <div class="space-y-4 pt-4 border-t border-gray-800">
                    <div class="flex items-center justify-between">
                       <div>
                          <h4 class="font-medium text-sm">Java Installations</h4>
@@ -196,11 +214,12 @@
 </template>
 
 <script setup lang="ts">
-import { readTextFile, writeTextFile, BaseDirectory } from '@tauri-apps/plugin-fs'
 import { open } from '@tauri-apps/plugin-shell'
 import { detectJava, type JavaStatus } from '~/utils/javaDetection'
 import { useUpdateChecker } from '~/composables/useUpdateChecker'
 import { GITHUB_RELEASES_URL } from '~/utils/version'
+import { useSettingsStore } from '~/stores/useSettingsStore'
+import { storeToRefs } from 'pinia'
 
 const loading = ref(true)
 const saving = ref(false)
@@ -210,33 +229,19 @@ const javaStatus = ref<JavaStatus>({ installed: false, version: '', details: '' 
 // Update checker
 const { updateInfo, checking: checkingUpdate, checkForUpdates, currentVersion } = useUpdateChecker()
 
-const settings = reactive({
-   javaPath: 'java',
-   defaultMemory: 4,
-   defaultFlags: '',
-   javaInstallations: {
-      java8: '',
-      java11: '',
-      java17: '',
-      java21: ''
-   }
-})
+// Settings Store
+const settingsStore = useSettingsStore()
+const { settings, systemRamGB } = storeToRefs(settingsStore)
+const { loadSettings, saveSettings } = settingsStore
 
 const detectingJava = ref(false)
-const systemRamGB = ref(32)
 
 onMounted(async () => {
-   loadSettings()
-   checkJava()
+   loading.value = true
+   await loadSettings()
+   loading.value = false
    
-   // Get system RAM
-   try {
-      const { invoke } = await import('@tauri-apps/api/core')
-      const sysInfo = await invoke<{ total_memory_bytes: number }>('get_system_info')
-      systemRamGB.value = Math.floor(sysInfo.total_memory_bytes / (1024 * 1024 * 1024))
-   } catch (e) {
-      console.log('Failed to get system info')
-   }
+   checkJava()
 })
 
 async function checkUpdate() {
@@ -251,31 +256,6 @@ async function checkJava() {
    checkingJava.value = true
    javaStatus.value = await detectJava()
    checkingJava.value = false
-}
-
-async function loadSettings() {
-   loading.value = true
-   try {
-     const content = await readTextFile('MineDash/settings.json', { baseDir: BaseDirectory.Document })
-     const data = JSON.parse(content)
-     if (data) {
-        settings.javaPath = data.javaPath ?? 'java'
-        settings.defaultMemory = data.defaultMemory ?? 4
-        settings.defaultFlags = data.defaultFlags ?? ''
-        if (data.javaInstallations) {
-           settings.javaInstallations = {
-              java8: data.javaInstallations.java8 ?? '',
-              java11: data.javaInstallations.java11 ?? '',
-              java17: data.javaInstallations.java17 ?? '',
-              java21: data.javaInstallations.java21 ?? ''
-           }
-        }
-     }
-   } catch (e) {
-      console.log('No settings file found, using defaults.')
-   } finally {
-      loading.value = false
-   }
 }
 
 async function detectAllJavaVersions() {
@@ -298,13 +278,13 @@ async function detectAllJavaVersions() {
          if (versionMatch) {
             const major = parseInt(versionMatch[1])
             if (major === 8 || major === 1) {
-               settings.javaInstallations.java8 = 'java'
+               settings.value.javaInstallations.java8 = 'java'
             } else if (major >= 21) {
-               settings.javaInstallations.java21 = 'java'
+               settings.value.javaInstallations.java21 = 'java'
             } else if (major >= 17) {
-               settings.javaInstallations.java17 = 'java'
+               settings.value.javaInstallations.java17 = 'java'
             } else if (major >= 11) {
-               settings.javaInstallations.java11 = 'java'
+               settings.value.javaInstallations.java11 = 'java'
             }
          }
       }
@@ -315,20 +295,11 @@ async function detectAllJavaVersions() {
    }
 }
 
-async function saveSettings() {
+// Wrapper for manual save button (although auto-save is active)
+async function handleManualSave() {
    saving.value = true
-   try {
-      await writeTextFile(
-         'MineDash/settings.json', 
-         JSON.stringify(settings, null, 2), 
-         { baseDir: BaseDirectory.Document }
-      )
-      // Toast would go here
-      console.log('Settings global saved')
-   } catch (e) {
-      console.error('Failed to save settings:', e)
-   } finally {
-      saving.value = false
-   }
+   await saveSettings()
+   saving.value = false
 }
+
 </script>

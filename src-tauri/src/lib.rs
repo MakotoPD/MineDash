@@ -35,16 +35,49 @@ pub struct TrayServer {
 #[tauri::command]
 fn get_process_info(pid: u32) -> Option<ProcessInfo> {
     let mut sys = System::new();
+    // We must refresh all processes to find children relationships
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    
     let target_pid = Pid::from_u32(pid);
     
-    // Refresh only the specific process
-    sys.refresh_processes(ProcessesToUpdate::Some(&[target_pid]), true);
+    // Check if process exists first
+    if sys.process(target_pid).is_none() {
+        return None;
+    }
+
+    // Since we need to traverse down, and sysinfo doesn't give direct child links easily without iteration,
+    // we can iterate once to build a simple map of Parent -> Children, OR just iterate repeatedly.
+    // Iterating repeatedly is O(N * Depth), which is small enough for process trees.
     
-    sys.process(target_pid).map(|process| {
-        ProcessInfo {
-            memory_bytes: process.memory(),
-            cpu_usage: process.cpu_usage(),
+    // Recursive closure to sum stats
+    fn sum_stats(sys: &System, pid: Pid) -> (u64, f32) {
+        let mut mem = 0;
+        let mut cpu = 0.0;
+        
+        // Add self stats
+        if let Some(proc) = sys.process(pid) {
+            mem += proc.memory();
+            cpu += proc.cpu_usage();
         }
+        
+        // Find children (inefficient O(N) scan per node but robust)
+        for (child_pid, child_proc) in sys.processes() {
+            if let Some(parent) = child_proc.parent() {
+                if parent == pid {
+                    let (c_mem, c_cpu) = sum_stats(sys, *child_pid);
+                    mem += c_mem;
+                    cpu += c_cpu;
+                }
+            }
+        }
+        (mem, cpu)
+    }
+
+    let (total_mem, total_cpu) = sum_stats(&sys, target_pid);
+
+    Some(ProcessInfo {
+        memory_bytes: total_mem,
+        cpu_usage: total_cpu,
     })
 }
 
@@ -185,13 +218,6 @@ pub fn run() {
                 .build(app)?;
             
             Ok(())
-        })
-        .on_window_event(|window, event| {
-            // Minimize to tray on close
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.hide();
-                api.prevent_close();
-            }
         })
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())

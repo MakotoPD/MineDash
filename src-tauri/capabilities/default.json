@@ -7,6 +7,9 @@
   ],
   "permissions": [
     "core:default",
+    "core:window:allow-hide",
+    "core:window:allow-show",
+    "core:window:allow-close",
     "http:default",
     "http:allow-fetch",
     {
@@ -161,24 +164,12 @@
         {
           "name": "run-bat",
           "cmd": "cmd",
-          "args": [
-            {
-              "validator": "^/[CK]$"
-            },
-            {
-              "validator": ".+"
-            }
-          ]
+          "args": true
         },
         {
           "name": "run-sh",
           "cmd": "sh",
-          "args": [
-            "-c",
-            {
-              "validator": ".+"
-            }
-          ]
+          "args": true
         },
         {
           "name": "run-java",
@@ -198,22 +189,12 @@
         {
           "name": "run-bat",
           "cmd": "cmd",
-          "args": [
-            "/C",
-            {
-              "validator": ".+"
-            }
-          ]
+          "args": true
         },
         {
           "name": "run-sh",
           "cmd": "sh",
-          "args": [
-            "-c",
-            {
-              "validator": "\\S+"
-            }
-          ]
+          "args": true
         }
       ]
     },
@@ -232,24 +213,12 @@
         {
           "name": "run-bat",
           "cmd": "cmd",
-          "args": [
-            {
-              "validator": "^/[CK]$"
-            },
-            {
-              "validator": ".+"
-            }
-          ]
+          "args": true
         },
         {
           "name": "run-sh",
           "cmd": "sh",
-          "args": [
-            "-c",
-            {
-              "validator": ".+"
-            }
-          ]
+          "args": true
         }
       ]
     }
