@@ -52,3 +52,13 @@ Here is what we plan to add in upcoming updates:
 - [ ] **Scheduled Tasks**: Auto-restart and scheduled commands.
 - [ ] **Advanced Network**: Port forwarding helper or tunnel integration (e.g., playit.gg).
 - [ ] **Multi-Version Support**: Better handling of Java versions manager for older Minecraft versions.
+
+## 🍎 macOS Troubleshooting (App is damaged)
+
+If you see a message saying **"MineDash is damaged and can't be opened"**, this is a normal security check for apps not signed with a paid Apple Developer certificate.
+
+To fix this, run the following command in your terminal:
+```bash
+sudo xattr -cr /Applications/MineDash.app
+```
+(Make sure the app is in your Applications folder first).
