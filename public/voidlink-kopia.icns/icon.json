@@ -1,0 +1,68 @@
+{
+  "fill" : {
+    "linear-gradient" : [
+      "display-p3:0.50653,0.90742,0.96783,1.00000",
+      "extended-srgb:0.00000,0.53333,1.00000,1.00000"
+    ],
+    "orientation" : {
+      "start" : {
+        "x" : 0.5,
+        "y" : 0
+      },
+      "stop" : {
+        "x" : 0.5,
+        "y" : 0.7
+      }
+    }
+  },
+  "groups" : [
+    {
+      "blend-mode" : "hard-light",
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name" : "elipse.svg",
+          "name" : "elipse",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              276.3068092807854,
+              -287.1071690058525
+            ]
+          }
+        },
+        {
+          "glass" : false,
+          "image-name" : "Vector.svg",
+          "name" : "Vector",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              -15.430000000000064,
+              4.524999999999864
+            ]
+          }
+        },
+        {
+          "blend-mode" : "screen",
+          "fill" : "automatic",
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "circles.svg",
+          "name" : "circles"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}
