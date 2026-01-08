@@ -91,6 +91,15 @@ A modern, powerful, and easy-to-use desktop application for creating and managin
 ### 💻 Console
 - **Live Console**: Real-time server logs with command input support.
 
+### 🌍 Built-in Tunneling (VoidLink Tunnels)
+Safe and easy way to expose your local Minecraft server to the internet without port forwarding.
+This application uses our custom tunneling solution: [VoidLink-Tunnels](https://github.com/MakotoPD/VoidLink-Tunnels).
+
+- **No Port Forwarding needed**: Works behind NAT and CGNAT.
+- **Secure**: Uses token-based authentication.
+- **TCP & UDP Support**: Supports both game traffic and Voice Chat.
+
+
 ## 🛠️ Technology Stack
 
 - **Frontend**: Nuxt 3, Vue 3, Nuxt UI, TailwindCSS
