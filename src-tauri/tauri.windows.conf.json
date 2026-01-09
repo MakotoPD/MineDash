@@ -1,0 +1,24 @@
+{
+	"app": {
+		"windows": [
+			{
+				"label": "main",
+				"transparent": true,
+				"width": 1200,
+				"height": 850,
+				"resizable": true,
+				"fullscreen": false,
+				"minWidth": 1200,
+				"minHeight": 850,
+				"dragDropEnabled": false,
+				"decorations": true,
+				"windowEffects": {
+					"effects": [
+						"mica"
+					],
+					"state": "followsWindowActiveState"
+				}
+			}
+		]
+	}
+}

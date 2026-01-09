@@ -1098,6 +1098,8 @@ const ramLimit = ref(6)
 // Java detection
 const detectedJavaVersion = ref<string | null>(null)
 const checkingJava = ref(false)
+import { useJava } from '~/composables/useJava'
+const { installations, scanJava, getJavaForVersion } = useJava()
 
 import { installModpack, installMrpack, installZip, readMrpackMetadata, readMmcMetadata } from '~/utils/modpack'
 
@@ -1624,26 +1626,39 @@ function goBack() {
   }
 }
 
+
+
 async function detectJavaVersion() {
   checkingJava.value = true
   try {
-    const command = Command.create('run-bat', ['/C', 'java -version'])
-    const output = await command.execute()
-    
-    // Java outputs version to stderr
-    const versionOutput = output.stderr || output.stdout
-    const match = versionOutput.match(/version "([^"]+)"/)
-    
-    if (match) {
-      detectedJavaVersion.value = match[1] || null
-    } else {
-      detectedJavaVersion.value = 'Not found'
-    }
+     await scanJava()
+     
+     // Determine required java based on MC version
+     const mcVersion = selectedVersion.value || ''
+     let requiredJava = 17
+     if (mcVersion >= '1.20.5') requiredJava = 21
+     else if (mcVersion >= '1.17') requiredJava = 17
+     else requiredJava = 8
+     
+     const compatible = getJavaForVersion(installations.value, requiredJava)
+     
+     if (compatible) {
+         detectedJavaVersion.value = `Java ${compatible.major || '?'} (${compatible.version || 'unknown'})`
+     } else {
+         if (installations.value.length > 0) {
+             const best = installations.value[0]
+             if (best) {
+                detectedJavaVersion.value = `Java ${best.major || '?'} (${best.version || 'unknown'})`
+             }
+         } else {
+             detectedJavaVersion.value = 'No Java detected'
+         }
+     }
   } catch (e) {
-    console.error('Failed to detect Java', e)
-    detectedJavaVersion.value = 'Not found'
+     console.error('Failed to detect java', e)
+     detectedJavaVersion.value = 'Detection Failed'
   } finally {
-    checkingJava.value = false
+     checkingJava.value = false
   }
 }
 

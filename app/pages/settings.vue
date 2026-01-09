@@ -105,6 +105,42 @@
                       class="font-mono text-sm w-full"
                    />
                 </div>
+
+                <!-- Install Java Section -->
+                <div class="p-4 rounded-xl border border-primary-500/30 bg-primary-500/5 relative overflow-hidden">
+                    <div class="flex items-center justify-between relative z-10">
+                       <div>
+                          <h4 class="font-semibold text-white flex items-center gap-2">
+                             <UIcon name="i-lucide-download-cloud" class="w-4 h-4 text-primary-400" />
+                             Install Java
+                          </h4>
+                          <p class="text-xs text-primary-200/70 mt-0.5">Download official Eclipse Temurin runtimes</p>
+                       </div>
+                       <div class="flex gap-2">
+                          <UButton 
+                             v-for="ver in [8, 17, 21]" 
+                             :key="ver"
+                             size="xs"
+                             color="primary" 
+                             variant="soft"
+                             :loading="downloadingVersion === ver"
+                             :disabled="downloadingVersion !== null && downloadingVersion !== ver"
+                             @click="handleJavaDownload(ver)"
+                          >
+                             Java {{ ver }}
+                          </UButton>
+                       </div>
+                    </div>
+                    
+                    <!-- Progress Overlay -->
+                    <div v-if="downloadingVersion !== null" class="mt-4 space-y-2">
+                        <div class="flex justify-between text-xs text-primary-200">
+                           <span>Downloading Java {{ downloadingVersion }}...</span>
+                           <span class="animate-pulse">Please wait</span>
+                        </div>
+                        <UProgress animation="carousel" color="primary" size="sm" />
+                    </div>
+                </div>
                 
                 <!-- Java Installations -->
                 <div class="pt-6 border-t border-gray-800/50">
@@ -290,7 +326,7 @@
 <script setup lang="ts">
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import { open } from '@tauri-apps/plugin-shell'
-import { detectJava, type JavaStatus } from '~/utils/javaDetection'
+import { useJava } from '~/composables/useJava'
 import { useUpdateChecker } from '~/composables/useUpdateChecker'
 import { GITHUB_RELEASES_URL } from '~/utils/version'
 import { useSettingsStore } from '~/stores/useSettingsStore'
@@ -299,7 +335,12 @@ import { storeToRefs } from 'pinia'
 const loading = ref(true)
 const saving = ref(false)
 const checkingJava = ref(false)
-const javaStatus = ref<JavaStatus>({ installed: false, version: '', details: '' })
+const javaStatus = ref({ installed: false, version: '', details: '' })
+
+const { installations, scanJava, validateJavaPath, downloadJava, fetchAdoptiumRelease } = useJava()
+
+const downloadingVersion = ref<number | null>(null)
+import { join, downloadDir, appDataDir } from '@tauri-apps/api/path'
 
 // Update checker
 const { updateInfo, checking: checkingUpdate, checkForUpdates, currentVersion } = useUpdateChecker()
@@ -332,7 +373,24 @@ async function openReleasePage() {
 
 async function checkJava() {
    checkingJava.value = true
-   javaStatus.value = await detectJava()
+   await scanJava()
+   
+   // Find the "best" system java (latest version)
+   const latest = installations.value[0] // Sorted by backend
+   
+   if (latest && latest.is_valid) {
+      javaStatus.value = {
+         installed: true,
+         version: `Java ${latest.major} (${latest.version})`,
+         details: latest.path
+      }
+   } else {
+      javaStatus.value = {
+         installed: false,
+         version: '',
+         details: 'No Java detected'
+      }
+   }
    checkingJava.value = false
 }
 
@@ -357,37 +415,63 @@ async function browseJavaPath(key: 'java8' | 'java11' | 'java17' | 'java21') {
 async function detectAllJavaVersions() {
    detectingJava.value = true
    try {
-      // Try common Java installation paths on Windows
-      const commonPaths = [
-         'C:/Program Files/Java',
-         'C:/Program Files/Eclipse Adoptium',
-         'C:/Program Files/Zulu',
-         'C:/Program Files/BellSoft',
-         'C:/Program Files/Microsoft'
-      ]
+      await scanJava()
       
-      // For now just check if default 'java' works
-      const status = await detectJava()
-      if (status.installed && status.version) {
-         // Parse version from status
-         const versionMatch = status.version.match(/(\d+)(?:\.(\d+))?/)
-         if (versionMatch) {
-            const major = parseInt(versionMatch[1])
-            if (major === 8 || major === 1) {
-               settings.value.javaInstallations.java8 = 'java'
-            } else if (major >= 21) {
-               settings.value.javaInstallations.java21 = 'java'
-            } else if (major >= 17) {
-               settings.value.javaInstallations.java17 = 'java'
-            } else if (major >= 11) {
-               settings.value.javaInstallations.java11 = 'java'
-            }
+      // Auto-assign known versions
+      for (const java of installations.value) {
+         if (!java.is_valid || !java.major) continue
+         
+         if (java.major === 8 && !settings.value.javaInstallations.java8) {
+            settings.value.javaInstallations.java8 = java.path
+         } else if (java.major === 11 && !settings.value.javaInstallations.java11) {
+            settings.value.javaInstallations.java11 = java.path
+         } else if (java.major === 17 && !settings.value.javaInstallations.java17) {
+            settings.value.javaInstallations.java17 = java.path
+         } else if (java.major >= 21 && !settings.value.javaInstallations.java21) {
+             settings.value.javaInstallations.java21 = java.path
          }
       }
+      
    } catch (e) {
       console.error('Failed to detect Java versions', e)
    } finally {
       detectingJava.value = false
+   }
+}
+
+async function handleJavaDownload(major: number) {
+   if (downloadingVersion.value !== null) return
+   
+   downloadingVersion.value = major
+   try {
+      // 1. Get Install Dir
+      const appData = await appDataDir()
+      const installDir = await join(appData, 'java', major.toString())
+      
+      console.log(`Downloading Java ${major} to ${installDir}`)
+      
+      // 2. Start Download
+      const javaPath = await downloadJava(major, installDir)
+      
+      // 3. Update Settings
+      if (major === 8) settings.value.javaInstallations.java8 = javaPath
+      if (major === 11) settings.value.javaInstallations.java11 = javaPath
+      if (major === 17) settings.value.javaInstallations.java17 = javaPath
+      if (major === 21) settings.value.javaInstallations.java21 = javaPath
+      
+      // 4. Refresh List
+      await scanJava()
+      checkJava()
+      
+      // Notify
+      // (Using console for now, maybe toast later if available)
+      console.log('Java installed successfully!')
+      
+   } catch (e) {
+      console.error('Download failed', e)
+      // Error handling UI?
+   } finally {
+      downloadingVersion.value = null
    }
 }
 

@@ -1,0 +1,36 @@
+{
+	"build": {
+		"beforeBuildCommand": "bash ../scripts/compile-macos-icon.sh",
+		"beforeBundleCommand": "bash ../scripts/compile-macos-icon.sh"
+	},
+	"app": {
+		"windows": [
+			{
+				"label": "main",
+				"transparent": true,
+				"titleBarStyle": "Overlay",
+				"hiddenTitle": true,
+				"resizable": true,
+				"fullscreen": false,
+				"minWidth": 1200,
+				"minHeight": 850,
+				"dragDropEnabled": false,
+				"trafficLightPosition": {
+					"x": 18,
+					"y": 20
+				},
+				"windowEffects": {
+					"effects": [
+						"sidebar"
+					],
+					"state": "followsWindowActiveState"
+				}
+			}
+		]
+	},
+	"bundle": {
+		"resources": {
+			"icons/Assets.car": "Assets.car"
+		}
+	}
+}

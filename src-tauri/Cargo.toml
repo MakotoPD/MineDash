@@ -34,3 +34,6 @@ tauri-plugin-deep-link = "2.4.5"
 tauri-plugin-single-instance = { version = "2.3.6", features = ["deep-link"] }
 rcon = { version = "0.6", features = ["rt-tokio"] }
 tokio = { version = "1", features = ["net", "io-util"] }
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+zip = "0.6"
+anyhow = "1.0"

@@ -1,6 +1,8 @@
 mod frp;
 mod rcon;
 mod utils;
+mod logs;
+mod java;
 
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
@@ -11,6 +13,15 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager, Emitter,
 };
+
+// ... (existing helper functions unchanged if not shown here, assuming replace_file_content target context works)
+
+// Skip to invoke_handler
+// But I need to be careful with replace_file_content. It replaces a contiguous block. 
+// I will do two edits or one large edit.
+// Let's use multi_replace for safety if I need to touch top and bottom.
+// Oh wait, replace_file_content replaces ONE block. 
+// I should use multi_replace_file_content to add `mod logs;` at top and commands at bottom.
 
 // Store app handle globally for menu updates
 static APP_HANDLE: Mutex<Option<tauri::AppHandle>> = Mutex::new(None);
@@ -279,6 +290,14 @@ pub fn run() {
             rcon::rcon_send_command,
             rcon::rcon_stop_server,
             utils::read_log_tail,
+            // Java commands
+            java::detect_java_installations_cmd,
+            java::validate_java_path_cmd,
+            java::fetch_adoptium_release_cmd,
+            java::download_java_cmd,
+            // Logs commands
+            logs::list_crash_reports_cmd,
+            logs::read_crash_report_cmd,
         ])
         .on_window_event(|_window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {

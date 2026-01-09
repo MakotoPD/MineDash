@@ -660,6 +660,73 @@
               </div>
            </template>
 
+           <template #crash-reports>
+              <div class="h-full flex flex-col p-6 max-w-6xl mx-auto w-full">
+                  <div class="flex items-center justify-between mb-6">
+                     <div>
+                        <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                           <UIcon name="i-lucide-file-warning" class="w-8 h-8 text-red-500" />
+                           Crash Reports
+                        </h2>
+                        <p class="text-gray-400">View and analyze server crashes</p>
+                     </div>
+                     <UButton icon="i-lucide-refresh-cw" color="neutral" variant="soft" @click="loadCrashReports" :loading="loadingReports">Refresh</UButton>
+                  </div>
+
+                  <div v-if="loadingReports" class="flex-1 flex justify-center items-center">
+                      <UIcon name="i-lucide-loader-2" class="w-8 h-8 animate-spin text-primary-500" />
+                  </div>
+
+                  <div v-else-if="crashReports.length === 0" class="flex-1 flex flex-col justify-center items-center text-gray-500 border-2 border-dashed border-gray-800 rounded-xl bg-gray-900/20 p-12">
+                      <UIcon name="i-lucide-check-circle-2" class="w-16 h-16 text-success-500/20 mb-4" />
+                      <h3 class="text-xl font-bold text-gray-300">No Crashes Found</h3>
+                      <p class="text-sm">Your server appears to be stable.</p>
+                  </div>
+
+                  <div v-else class="grid gap-4">
+                      <div 
+                         v-for="report in crashReports" 
+                         :key="report.name"
+                         class="p-4 bg-gray-900/50 border border-gray-800 rounded-xl hover:bg-gray-800/50 hover:border-gray-700 transition-all cursor-pointer group"
+                         @click="openCrashReport(report)"
+                      >
+                         <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-4">
+                               <div class="p-3 bg-red-500/10 rounded-lg group-hover:bg-red-500/20 transition-colors">
+                                  <UIcon name="i-lucide-file-text" class="w-6 h-6 text-red-400" />
+                               </div>
+                               <div>
+                                  <h4 class="font-bold text-white group-hover:text-primary-400 transition-colors">{{ report.name }}</h4>
+                                  <p class="text-xs text-gray-500 font-mono">{{ new Date(report.created * 1000).toLocaleString() }}</p>
+                               </div>
+                            </div>
+                            <UIcon name="i-lucide-chevron-right" class="w-5 h-5 text-gray-600 group-hover:text-white" />
+                         </div>
+                      </div>
+                  </div>
+
+                  <!-- Viewing Modal -->
+                  <UModal v-model:open="showReportModal" fullscreen>
+                      <template #header>
+                         <div class="flex items-center justify-between p-4 border-b border-gray-800 bg-gray-900">
+                             <h3 class="font-bold text-white flex items-center gap-2">
+                                <UIcon name="i-lucide-file-warning" class="w-5 h-5 text-red-500" />
+                                {{ viewingReport?.name }}
+                             </h3>
+                             <UButton icon="i-lucide-x" color="neutral" variant="ghost" @click="showReportModal = false" />
+                         </div>
+                      </template>
+                      <template #body>
+                         <div class="p-0 h-[calc(100vh-140px)] bg-gray-950 overflow-hidden flex flex-col">
+                            <div class="flex-1 overflow-auto p-4 font-mono text-sm text-gray-300 whitespace-pre-wrap custom-scrollbar">
+                               {{ reportContent }}
+                            </div>
+                         </div>
+                      </template>
+                  </UModal>
+              </div>
+           </template>
+
            <template #addons>
                <div class="h-full flex flex-col p-4 relative space-y-4">
                   <!-- Toolbar -->
@@ -1864,6 +1931,9 @@ const serverStore = useServerProcessStore()
 const storeServerId = computed(() => serverFolderName.value)
 const serverState = computed(() => serverStore.getServer(storeServerId.value))
 
+import { useJava } from '~/composables/useJava'
+const { scanJava, getJavaForVersion, validateJavaPath, installations } = useJava()
+
 // These are reactive references to the store - use store methods for persistence
 const serverStatus = computed({
    get: () => serverState.value.status,
@@ -2508,7 +2578,8 @@ const tabs = computed(() => {
         { label: 'Console', icon: 'i-lucide-terminal', value: 'console', slot: 'console' as const },
         { label: 'Settings', icon: 'i-lucide-settings', value: 'settings', slot: 'settings' as const },
         { label: 'Mods/Plugins', icon: 'i-lucide-package', value: 'addons', slot: 'addons' as const },
-        { label: 'Players', icon: 'i-lucide-users', value: 'players', slot: 'players' as const }
+        { label: 'Players', icon: 'i-lucide-users', value: 'players', slot: 'players' as const },
+        { label: 'Crash Reports', icon: 'i-lucide-file-warning', value: 'crash-reports', slot: 'crash-reports' as const }
     ]
     
     if (!addonsFolder.value) {
@@ -2538,6 +2609,9 @@ watch(selectedTab, async () => {
    }
    if (tab === 'mods' && !Object.keys(addons.value).length) {
       loadAddons()
+   }
+   if (tab === 'crash-reports') {
+       loadCrashReports()
    }
 })
 
@@ -2985,6 +3059,49 @@ async function performModpackUpdate() {
 }
 
 
+
+// --- Crash Reports ---
+interface CrashReport {
+    name: string
+    path: string
+    created: number
+    content?: string
+}
+
+const crashReports = ref<CrashReport[]>([])
+const loadingReports = ref(false)
+const showReportModal = ref(false)
+const viewingReport = ref<CrashReport | null>(null)
+const reportContent = ref('')
+
+async function loadCrashReports() {
+    loadingReports.value = true
+    try {
+        const folder = serverFolderName.value
+        const docDir = await documentDir()
+        const fullServerPath = await join(docDir, 'VoidLink', 'servers', folder)
+        
+        crashReports.value = await invoke('list_crash_reports_cmd', { serverPath: fullServerPath })
+    } catch (e) {
+        console.error('Failed to load crash reports', e)
+    } finally {
+        loadingReports.value = false
+    }
+}
+
+async function openCrashReport(report: CrashReport) {
+    viewingReport.value = report
+    reportContent.value = 'Loading...'
+    showReportModal.value = true
+    
+    try {
+        reportContent.value = await invoke('read_crash_report_cmd', { path: report.path })
+    } catch (e) {
+        reportContent.value = `Failed to read report: ${e}`
+    }
+}
+
+
 // --- Status Logic ---
 const statusBgClass = computed(() => {
    switch (serverStatus.value) {
@@ -3099,16 +3216,51 @@ async function startServer() {
       }
       
       // Auto-select Java path based on MC version
-      const { getJavaPathForVersion } = await import('~/utils/javaVersions')
-      const mcVersion = server.value.version || ''
-      
       // If path is default 'java' or empty, try auto-detection
       let javaPath = javaSettings.path
+      
       if (!javaPath || javaPath === 'java') {
-         javaPath = getJavaPathForVersion(javaInstallations, mcVersion, 'java')
+         await scanJava()
+         
+         // 1. Determine Major Version from MC version
+         // < 1.17 -> 8
+         // 1.17 .. 1.20.4 -> 17
+         // >= 1.20.5 -> 21
+         const v = server.value.version || ''
+         let requiredMajor = 8
+         // very naive parsing
+         if (v) {
+             const parts = v.split('.').map(Number)
+             if (parts.length >= 2) {
+                 const minor = parts[1]
+                 const patch = parts[2] || 0
+                 
+                 if (minor >= 17) requiredMajor = 17
+                 if (minor >= 20 && patch >= 5) requiredMajor = 21 // 1.20.5+
+                 if (minor >= 21) requiredMajor = 21 
+             }
+         }
+         
+         const bestJava = getJavaForVersion(installations.value, requiredMajor)
+         if (bestJava) {
+             javaPath = bestJava.path
+             consoleLines.value.push(`Auto-detected Java ${bestJava.major} (${bestJava.version}) at ${javaPath}`)
+         } else {
+             consoleLines.value.push(`Warning: No optimal Java found for MC ${v}. Using system default.`)
+             javaPath = 'java'
+         }
+      } else {
+         // Validating custom path
+         const validation = await validateJavaPath(javaPath)
+         if (!validation.is_valid) {
+             consoleLines.value.push(`Warning: Configured Java path is invalid: ${validation.error || 'Unknown error'}`)
+             // Fallback? Or fail? Let's just warn and try anyway or fail.
+         } else {
+             consoleLines.value.push(`Using Configured Java: ${validation.version} (${validation.arch})`)
+         }
       }
       
-      consoleLines.value.push(`Using Java: ${javaPath} (MC ${mcVersion || 'unknown'})`)
+      consoleLines.value.push(`Selected Java Path: ${javaPath}`)
       
       const jarPath = await join(fullServerPath, 'server.jar')
       
