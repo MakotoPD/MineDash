@@ -230,6 +230,11 @@
           "name": "run-sh",
           "cmd": "sh",
           "args": true
+        },
+        {
+          "name": "frpc",
+          "cmd": "frpc",
+          "args": true
         }
       ]
     }

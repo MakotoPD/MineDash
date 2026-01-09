@@ -1,5 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  ignore: ['**/src-tauri/**'],
   ssr: false,
 
   devtools: { enabled: true },
@@ -39,6 +40,9 @@ export default defineNuxtConfig({
     clearScreen: false,
     server: {
       strictPort: true,
+      watch: {
+        ignored: ['**/src-tauri/**']
+      },
       hmr: {
         protocol: 'ws',
         host: '0.0.0.0',
@@ -46,5 +50,9 @@ export default defineNuxtConfig({
       },
     },
     envPrefix: ['VITE_', 'TAURI_'],
+  },
+
+  nitro: {
+    ignore: ['src-tauri/**']
   },
 })

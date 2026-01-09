@@ -1,0 +1,4 @@
+# Ignore Tauri directory from Nuxt build/watch
+src-tauri/**
+**/src-tauri/**
+src-tauri/target/**
