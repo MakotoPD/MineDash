@@ -1,6 +1,0 @@
-
-> void-link@ tauri C:\Users\Patryk\Documents\GitHub\VoidLink
-> tauri "signer" "generate" "--force"
-
-Please enter a password to protect the secret key.
-
