@@ -406,6 +406,31 @@ async function handleUpdateDownload() {
    } catch (err) {
       console.error('Failed to install update', err)
       isDownloadingUpdate.value = false
+      
+      // Show helpful error to user
+      const errorMessage = String(err)
+      
+      // Check if this is a Linux permission issue (common with .deb)
+      if (errorMessage.includes('permission') || errorMessage.includes('sudo') || errorMessage.includes('root')) {
+         toast.add({
+            title: 'Update requires elevated permissions',
+            description: 'Please download and install the update manually, or use the AppImage version for auto-updates.',
+            icon: 'i-lucide-alert-triangle',
+            color: 'warning',
+            duration: 10000
+         })
+      } else {
+         toast.add({
+            title: 'Update failed',
+            description: 'Auto-update failed. Opening releases page for manual download...',
+            icon: 'i-lucide-alert-circle',
+            color: 'error',
+            duration: 5000
+         })
+      }
+      
+      // Open releases page as fallback
+      await open(GITHUB_RELEASES_URL)
    }
 }
 
