@@ -1,0 +1,13 @@
+## Changes (v0.3.4 Hotfix)
+
+### 🚑 Critical Fixes (Hotfix)
+- **Auto-Update Permissions**: Fixed a critical issue where the application lacked the necessary `updater:default` permission in `capabilities/default.json`. 
+    - *Note for users*: Versions 0.3.2 and 0.3.3 cannot auto-update due to this missing permission. You must manually download and install v0.3.4 to restore auto-update functionality for future releases.
+
+### ✨ Features & UX Improvements (from v0.3.3)
+- **Native Experience**: Blocked `F5` refresh and right-click context menu in production.
+- **Windows UI**: Fixed scrollbar overlapping the custom title bar.
+
+### 🐛 Bug Fixes (from v0.3.3)
+- **Java Compatibility**: Improved Java version detection logic (`getJavaForVersion`).
+- **Linting**: Resolved code quality issues in `server/[id].vue`.
