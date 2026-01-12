@@ -5,6 +5,8 @@ use reqwest::blocking::Client;
 use std::fs;
 use anyhow::Result;
 use tauri::Manager;
+use flate2::read::GzDecoder;
+use tar::Archive;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct JavaInstallation {
@@ -466,12 +468,20 @@ fn extract_archive(archive: &Path, dest: &Path) -> Result<PathBuf> {
         let tar_peek = GzDecoder::new(file_peek);
         let mut archive_peek = Archive::new(tar_peek);
         
-        let root_name = archive_peek.entries()
-            .map_err(|e| anyhow::anyhow!(e))?
-            .filter_map(|e| e.ok())
-            .next()
-            .map(|e| e.path().unwrap().into_owned().to_string_lossy().split('/').next().unwrap_or("").to_string())
-            .unwrap_or_default();
+        // Use explicit loop/match to avoid complex closure type inference issues
+        let mut root_name = String::new();
+        if let Ok(entries) = archive_peek.entries() {
+            for entry in entries {
+                if let Ok(e) = entry {
+                    if let Ok(path) = e.path() {
+                        if let Some(first_component) = path.into_owned().to_string_lossy().split('/').next() {
+                             root_name = first_component.to_string();
+                             break;
+                        }
+                    }
+                }
+            }
+        }
 
         // Second pass: actual extraction
         let file = fs::File::open(archive).map_err(|e| anyhow::anyhow!(e))?;
