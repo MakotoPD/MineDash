@@ -78,7 +78,6 @@ const settingsStore = useSettingsStore()
 const { loadSettings } = settingsStore
 const { settings } = storeToRefs(settingsStore)
 
-let trayUpdateInterval: ReturnType<typeof setInterval> | null = null
 let unlistenClose: (() => void) | null = null
 
 onMounted(async () => {
@@ -188,15 +187,28 @@ onMounted(async () => {
   // Initial tray menu update
   await updateTrayMenu(servers.value, getServerStatus)
   
-  // Periodically update tray menu with server status
-  trayUpdateInterval = setInterval(async () => {
+  // Reactive tray state to avoid polling
+  // We compute this structure so we only trigger updates when names or statuses change,
+  // ignoring frequent updates to memory/cpu usage in the process store.
+  const trayState = computed(() => {
+    return servers.value.map(server => {
+      const id = server.path.split('/').pop() || ''
+      return {
+        path: server.path,
+        name: server.name,
+        status: getServerStatus(id)
+      }
+    })
+  })
+
+  // Watch for changes in the computed tray state
+  watch(trayState, async () => {
     await updateTrayMenu(servers.value, getServerStatus)
-  }, 3000)
+  }, { deep: true })
 })
 
 onUnmounted(() => {
   cleanupTrayListener()
   if (unlistenClose) unlistenClose()
-  if (trayUpdateInterval) clearInterval(trayUpdateInterval)
 })
 </script>

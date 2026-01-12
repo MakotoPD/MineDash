@@ -53,23 +53,38 @@ fn get_process_info(pid: u32) -> Option<ProcessInfo> {
     
     let target_pid = Pid::from_u32(pid);
     
+    // Check if target exists
     if sys.process(target_pid).is_none() {
         return None;
     }
 
-    fn sum_stats(sys: &System, pid: Pid) -> (u64, f32) {
+    // Use a visited set to avoid any potential double counting loops,
+    // although tree traversal shouldn't loop, process graphs can be weird.
+    use std::collections::HashSet;
+    let mut visited = HashSet::new();
+
+    fn sum_stats(sys: &System, pid: Pid, visited: &mut HashSet<Pid>) -> (u64, f32) {
+        if !visited.insert(pid) {
+            return (0, 0.0);
+        }
+
         let mut mem = 0;
         let mut cpu = 0.0;
         
         if let Some(proc) = sys.process(pid) {
             mem += proc.memory();
             cpu += proc.cpu_usage();
+            // log::info!("PID: {}, RAM: {} bytes", pid, proc.memory());
         }
         
+        // Find direct children
+        // Note: sys.processes() is a flat list of all processes. 
+        // Iterating it for every node is O(N^2) or worse depending on depth.
+        // But for a single server tree it's usually acceptable.
         for (child_pid, child_proc) in sys.processes() {
             if let Some(parent) = child_proc.parent() {
                 if parent == pid {
-                    let (c_mem, c_cpu) = sum_stats(sys, *child_pid);
+                    let (c_mem, c_cpu) = sum_stats(sys, *child_pid, visited);
                     mem += c_mem;
                     cpu += c_cpu;
                 }
@@ -78,7 +93,9 @@ fn get_process_info(pid: u32) -> Option<ProcessInfo> {
         (mem, cpu)
     }
 
-    let (total_mem, total_cpu) = sum_stats(&sys, target_pid);
+    let (total_mem, total_cpu) = sum_stats(&sys, target_pid, &mut visited);
+
+    // log::info!("Total for PID {}: {} bytes", pid, total_mem);
 
     Some(ProcessInfo {
         memory_bytes: total_mem,

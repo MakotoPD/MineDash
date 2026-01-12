@@ -1,6 +1,6 @@
 [package]
 name = "void-link"
-version = "0.3.7"
+version = "0.3.8"
 description = "VoidLink minecraft server dashboard"
 authors = ["MakotoPD"]
 license = "MIT"
