@@ -49,6 +49,14 @@ pub struct TrayServer {
 #[tauri::command]
 fn get_process_info(pid: u32) -> Option<ProcessInfo> {
     let mut sys = System::new();
+    
+    // First refresh to initialize CPU measurement baseline
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    
+    // Wait a short time for CPU measurement (sysinfo needs two samples)
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    
+    // Second refresh to get actual CPU usage
     sys.refresh_processes(ProcessesToUpdate::All, true);
     
     let target_pid = Pid::from_u32(pid);

@@ -1,3 +1,8 @@
+## Changes (v0.3.13)
+
+### 🐛 Bug Fixes
+- **Linux CPU/RAM Monitoring**: Fixed CPU usage always showing 0% on Linux. The sysinfo library requires two measurement samples with a time delay to calculate CPU usage correctly.
+
 ## Changes (v0.3.12)
 
 ### 🐛 Bug Fixes
