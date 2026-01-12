@@ -5,10 +5,13 @@ export const useAutoUpdate = () => {
 	const toast = useToast()
 
 	const checkForUpdates = async (silent = false) => {
+		console.log('[AutoUpdate] Checking for updates...', { silent })
 		try {
 			const update = await check()
+			console.log('[AutoUpdate] Update check result:', update)
 
 			if (update) {
+				console.log(`[AutoUpdate] Update available: ${update.version}`)
 				toast.add({
 					title: 'Update Available',
 					description: `Version ${update.version} is available.`,
@@ -18,6 +21,7 @@ export const useAutoUpdate = () => {
 					actions: [{
 						label: 'Update & Restart',
 						onClick: async () => {
+							console.log('[AutoUpdate] Starting download and install...')
 							let downloaded = 0
 							let contentLength = 0
 
@@ -32,6 +36,7 @@ export const useAutoUpdate = () => {
 							})
 
 							await update.downloadAndInstall((event) => {
+								console.log('[AutoUpdate] Install event:', event.event, event.data)
 								switch (event.event) {
 									case 'Started':
 										contentLength = event.data.contentLength || 0
@@ -40,6 +45,7 @@ export const useAutoUpdate = () => {
 										downloaded += event.data.chunkLength
 										break
 									case 'Finished':
+										console.log('[AutoUpdate] Download finished, relaunching...')
 										break
 								}
 							})
@@ -48,10 +54,11 @@ export const useAutoUpdate = () => {
 						}
 					}, {
 						label: 'Later',
-						onClick: () => { }
+						onClick: () => { console.log('[AutoUpdate] User dismissed update') }
 					}]
 				})
 			} else if (!silent) {
+				console.log('[AutoUpdate] No update found (up to date)')
 				toast.add({
 					title: 'Up to date',
 					description: 'You are running the latest version.',
@@ -60,7 +67,7 @@ export const useAutoUpdate = () => {
 				})
 			}
 		} catch (error) {
-			console.error('Failed to check for updates:', error)
+			console.error('[AutoUpdate] Failed to check for updates:', error)
 			if (!silent) {
 				toast.add({
 					title: 'Update Check Failed',
