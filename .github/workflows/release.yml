@@ -75,22 +75,22 @@ jobs:
           cat << 'RELEASE_BODY' > release_body.md
           ## 📥 Downloads
           
-          | Platform | Architecture | File |
-          |----------|-------------|------|
-          | 🪟 Windows | x64 | `VoidLink_${VERSION}_x64-setup.exe` |
-          | 🍎 macOS | Apple Silicon (M1/M2) | `VoidLink_${VERSION}_aarch64.dmg` |
-          | 🍎 macOS | Intel | `VoidLink_${VERSION}_x64.dmg` |
-          | 🐧 Linux | x64 | `VoidLink_${VERSION}_amd64.AppImage` |
-          | 🐧 Linux | x64 (deb) | `VoidLink_${VERSION}_amd64.deb` |
-          | 🐧 Linux | x64 (rpm) | `VoidLink_${VERSION}.x86_64.rpm` |
+          | Platform | Architecture | Download |
+          |----------|-------------|----------|
+          | 🪟 Windows | x64 | [VoidLink_${VERSION}_x64-setup.exe](https://github.com/MakotoPD/VoidLink/releases/download/${TAG}/VoidLink_${VERSION}_x64-setup.exe) |
+          | 🍎 macOS | Apple Silicon (M1/M2) | [VoidLink_${VERSION}_aarch64.dmg](https://github.com/MakotoPD/VoidLink/releases/download/${TAG}/VoidLink_${VERSION}_aarch64.dmg) |
+          | 🍎 macOS | Intel | [VoidLink_${VERSION}_x64.dmg](https://github.com/MakotoPD/VoidLink/releases/download/${TAG}/VoidLink_${VERSION}_x64.dmg) |
+          | 🐧 Linux | x64 (AppImage) | [VoidLink_${VERSION}_amd64.AppImage](https://github.com/MakotoPD/VoidLink/releases/download/${TAG}/VoidLink_${VERSION}_amd64.AppImage) |
+          | 🐧 Linux | x64 (deb) | [VoidLink_${VERSION}_amd64.deb](https://github.com/MakotoPD/VoidLink/releases/download/${TAG}/VoidLink_${VERSION}_amd64.deb) |
+          | 🐧 Linux | x64 (rpm) | [VoidLink-${VERSION}-1.x86_64.rpm](https://github.com/MakotoPD/VoidLink/releases/download/${TAG}/VoidLink-${VERSION}-1.x86_64.rpm) |
           
           ---
           
           RELEASE_BODY
           
-          # Replace version placeholder (cross-platform compatible)
+          # Replace placeholders (cross-platform compatible)
           VERSION_NUM="${VERSION#v}"
-          sed "s/\${VERSION}/${VERSION_NUM}/g" release_body.md > release_body_tmp.md && mv release_body_tmp.md release_body.md
+          sed "s/\${VERSION}/${VERSION_NUM}/g; s/\${TAG}/${VERSION}/g" release_body.md > release_body_tmp.md && mv release_body_tmp.md release_body.md
           
           # Append changelog
           echo "## 📝 What's Changed" >> release_body.md
