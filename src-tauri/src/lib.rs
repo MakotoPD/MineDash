@@ -401,6 +401,7 @@ pub fn run() {
               let _ = window.unminimize();
           }
         }))
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             get_process_info,

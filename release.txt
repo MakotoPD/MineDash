@@ -1,3 +1,8 @@
+## Changes (v0.3.18)
+
+### 🐛 Bug Fixes
+- **Linux Auto-Update**: Fixed "Command plugin:process|restart not allowed by ACL" error when updating. Added missing `tauri-plugin-process` for app restart after updates.
+
 ## Changes (v0.3.17)
 
 ### 🐛 Bug Fixes
