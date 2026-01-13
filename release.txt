@@ -1,3 +1,8 @@
+## Changes (v0.4.1)
+
+### 🐛 Bug Fixes
+- **Windows Auto-Update**: Fixed a critical issue where the auto-updater would fail with a "private member" error due to Vue reactivity proxies.
+
 ## Changes (v0.4.0)
 
 ### ✨ Features & Improvements

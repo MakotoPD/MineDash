@@ -1,5 +1,6 @@
 import { check } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { toRaw } from 'vue'
 
 export const useAutoUpdate = () => {
 	const toast = useToast()
@@ -35,7 +36,7 @@ export const useAutoUpdate = () => {
 								loading: true
 							})
 
-							await update.downloadAndInstall((event) => {
+							await toRaw(update).downloadAndInstall((event) => {
 								console.log('[AutoUpdate] Install event:', event.event, event.data)
 								switch (event.event) {
 									case 'Started':
